@@ -1,0 +1,40 @@
+//@version=5
+strategy('RichBot', shorttitle='RBot', precision=2, overlay=true, initial_capital=1000, commission_type=strategy.commission.percent, commission_value=0.1, currency='USD', calc_on_every_tick=true)
+
+print(string txt) => 
+    var table t = table.new(position.middle_right, 1, 1) 
+    table.cell(t, 0, 0, txt, bgcolor = color.yellow)
+
+periodK = input.int(title='K', minval=1, defval=24)
+periodD = input.int(title='D', minval=1, defval=3)
+
+smoothK = input.int(title='Smooth', minval=1, defval=5)
+src = input(title='Source', defval=close)
+
+anycrosses(timeframe) =>
+    [tframeSrc, tframeHigh, tframeLow] = request.security(syminfo.tickerid, timeframe, [src, high, low])
+
+    k = ta.sma(ta.stoch(tframeSrc, tframeHigh, tframeLow, periodK), smoothK)
+    d = ta.sma(k, periodD)
+
+    long = ta.crossover(k, d)
+    short = ta.crossunder(k, d)
+
+    green = close[1] > open[1]
+
+    [long and green, short and not green]
+
+[long1m, short1m] = anycrosses('1')
+[long3m, short3m] = anycrosses('3')
+
+[long5m, short5m] = anycrosses('5')
+
+if long1m and long3m
+    strategy.entry('Long', strategy.long)
+else if short1m and short3m
+    strategy.entry('Short', strategy.short)
+
+if long5m
+    strategy.close('Short')
+else if short5m
+    strategy.close('Long')
