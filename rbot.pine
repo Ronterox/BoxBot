@@ -26,9 +26,9 @@ anycrosses(timeframe) =>
 
 [long1m, short1m] = anycrosses('1')
 [long3m, short3m] = anycrosses('3')
-
 [long5m, short5m] = anycrosses('5')
 
+// Do not do if already in a position
 if long1m and long3m
     strategy.entry('Long', strategy.long)
 else if short1m and short3m
