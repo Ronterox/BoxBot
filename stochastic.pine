@@ -6,7 +6,7 @@ print(string txt) =>
     var table t = table.new(position.middle_right, 1, 1) 
     table.cell(t, 0, 0, txt, bgcolor = color.yellow)
 
-var color NONE_COLOR = color.new(color.white, 100)
+var color TRANSPARENT = color.new(color.white, 100)
 
 FAST_PERIOD_K = input.int(title='Fast Period', minval=1, defval=24)
 SLOW_PERIOD_D = input.int(title='Slow Period', minval=1, defval=3)
@@ -31,11 +31,11 @@ histogramColor = histogram >= 0 ? histogram[1] < histogram ? #26A69A : #B2DFDB :
 plot(histogram, title='Histogram', style=plot.style_columns, color=histogramColor)
 
 overboughtLevelPlot = hline(OVERBOUGHT_LEVEL, title='Overbought Level', linestyle=hline.style_dotted, color=#00796b)
-maxLevelPlot = hline(MAX_LEVEL, title='Max Level', linestyle=hline.style_dotted, color=NONE_COLOR)
+maxLevelPlot = hline(MAX_LEVEL, title='Max Level', linestyle=hline.style_dotted, color=TRANSPARENT)
 hline(50, title='Middle Level', linestyle=hline.style_dotted, color=#989898)
 
 oversoldLevelPlot = hline(OVERSOLD_LEVEL, title='Oversold Level', linestyle=hline.style_dotted, color=#f57f17)
-minLevelPlot = hline(MIN_LEVEL, title='Min Level', linestyle=hline.style_dotted, color=NONE_COLOR)
+minLevelPlot = hline(MIN_LEVEL, title='Min Level', linestyle=hline.style_dotted, color=TRANSPARENT)
 fill(overboughtLevelPlot, oversoldLevelPlot, title='Middle Zone', color=color.new(color.purple, 95))
 
 overboughtBreakoutColor = fastPeriod > OVERBOUGHT_LEVEL ? color.red : na

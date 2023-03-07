@@ -1,62 +1,56 @@
 //@version=5
 indicator('Stochastic Momentum Index', shorttitle='SMI')
 
+// TODO: Rename things with more meaningful names
+var color TRANSPARENT = color.new(color.white, 100)
+
 q = input.int(title='Stochastic Lookback', defval=13, minval=1)
 r = input.int(title='1st Smoothing Length', defval=25, minval=1)
 s = input.int(title='2nd Smoothing Length', defval=2, minval=1)
-signalLength = input.int(title='Signal Length', defval=12, minval=1)
-obLevel = input(title='Overbought Level', defval=40)
-osLevel = input(title='Oversold Level', defval=-40)
-maxLevel = input(title='Max Level', defval=75)
-minLevel = input(title='Min Level', defval=-75)
-src = input(title='Source', defval=close)
-showHistogram = input(title='Show Histogram ?', defval=false)
-highlightBreakouts = input(title='Highlight Overbought/Oversold Breakouts ?', defval=true)
-highlightCrossovers = input(title='Highlight SMI/Signal Crossovers ?', defval=false)
-highlightZeroCrossovers = input(title='Highlight Zero Line Crossovers ?', defval=false)
-applyFilling = input(title='Apply Ribbon Filling ?', defval=false)
+
+SIGNAL_LENGTH = input.int(title='Signal Length', defval=12, minval=1)
+OVERBOUGHT_LEVEL = input(title='Overbought Level', defval=40)
+OVERSOLD_LEVEL = input(title='Oversold Level', defval=-40)
+MAX_LEVEL = input(title='Max Level', defval=75)
+MIN_LEVEL = input(title='Min Level', defval=-75)
+SRC = input(title='Source', defval=close)
 
 hh = ta.highest(q)
 ll = ta.lowest(q)
 
-numerator = ta.ema(ta.ema(src - 0.5 * (hh + ll), r), s)
+numerator = ta.ema(ta.ema(SRC - 0.5 * (hh + ll), r), s)
 denominator = 0.5 * ta.ema(ta.ema(hh - ll, r), s)
 
 smi = 100 * numerator / denominator
-signal = ta.ema(smi, signalLength)
+signal = ta.ema(smi, SIGNAL_LENGTH)
 
 hist = smi - signal
 histColor = hist >= 0 ? hist[1] < hist ? #26A69A : #B2DFDB : hist[1] < hist ? #FFCDD2 : #EF5350
-plot(showHistogram ? hist : na, title='Histogram', style=plot.style_columns, color=histColor, transp=0)
+plot(hist, title='Histogram', style=plot.style_columns, color=histColor)
 
 trendColor = smi > signal ? #0ebb23 : color.red
-smiColor = applyFilling ? trendColor : #ff3e7d
-signalColor = applyFilling ? trendColor : #3c78d8
 
-smiPlot = plot(smi, title='SMI', color=smiColor, transp=0)
-signalPlot = plot(signal, title='Signal', color=signalColor, transp=0)
+smiPlot = plot(smi, title='SMI', color=trendColor)
+signalPlot = plot(signal, title='Signal', color=trendColor)
 
-transparent = color.new(color.white, 100)
-
-maxLevelPlot = hline(maxLevel, title='Max Level', linestyle=hline.style_dotted, color=transparent)
-obLevelPlot = hline(obLevel, title='Overbought Level', linestyle=hline.style_dotted, color=#00796b)
+maxLevelPlot = hline(MAX_LEVEL, title='Max Level', linestyle=hline.style_dotted, color=TRANSPARENT)
+overboughtLevelPlot = hline(OVERBOUGHT_LEVEL, title='Overbought Level', linestyle=hline.style_dotted, color=#00796b)
 hline(0, title='Zero Level', linestyle=hline.style_dotted, color=#989898)
-osLevelPlot = hline(osLevel, title='Oversold Level', linestyle=hline.style_dotted, color=#f57f17)
-minLevelPlot = hline(minLevel, title='Min Level', linestyle=hline.style_dotted, color=transparent)
-fill(obLevelPlot, osLevelPlot, color=color.new(color.purple, 95))
 
-obFillColor = smi > obLevel and highlightBreakouts ? color.green : transparent
-osFillColor = smi < osLevel and highlightBreakouts ? color.red : transparent
+oversoldLevelPlot = hline(OVERSOLD_LEVEL, title='Oversold Level', linestyle=hline.style_dotted, color=#f57f17)
+minLevelPlot = hline(MIN_LEVEL, title='Min Level', linestyle=hline.style_dotted, color=TRANSPARENT)
+fill(overboughtLevelPlot, oversoldLevelPlot, color=color.new(color.purple, 95))
 
-fill(maxLevelPlot, obLevelPlot, color=obFillColor, transp=85)
-fill(minLevelPlot, osLevelPlot, color=osFillColor, transp=85)
+overboughtBreakColor = smi > OVERBOUGHT_LEVEL ? color.green : TRANSPARENT
+oversoldBreakColor = smi < OVERSOLD_LEVEL ? color.red : TRANSPARENT
 
-fillColor = applyFilling ? trendColor : transparent
-fill(smiPlot, signalPlot, color=fillColor, transp=70)
+fill(maxLevelPlot, overboughtLevelPlot, color=color.new(overboughtBreakColor, 85))
+fill(minLevelPlot, oversoldLevelPlot, color=color.new(oversoldBreakColor, 85))
+fill(smiPlot, signalPlot, color=trendColor, transp=70)
 
-zeroCrossBgColor = highlightZeroCrossovers ? smi > 0 ? color.green : color.red : transparent
-bgcolor(zeroCrossBgColor, transp=90)
+zeroCrossBgColor = smi > 0 ? color.green : color.red
+bgcolor(color.new(zeroCrossBgColor, 90))
 
-plotshape(highlightCrossovers and ta.crossover(smi, signal) ? smi : na, title='Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.new(color.green, 0))
-plotshape(highlightCrossovers and ta.crossunder(smi, signal) ? smi : na, title='Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.new(color.red, 0))
+plotshape(ta.crossover(smi, signal) ? smi : na, title='Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
+plotshape(ta.crossunder(smi, signal) ? smi : na, title='Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
 
