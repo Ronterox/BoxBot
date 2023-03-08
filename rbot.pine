@@ -7,7 +7,6 @@ print(string txt) =>
 
 periodK = input.int(title='K', minval=1, defval=24)
 periodD = input.int(title='D', minval=1, defval=3)
-
 smoothK = input.int(title='Smooth', minval=1, defval=5)
 src = input(title='Source', defval=close)
 
