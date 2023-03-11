@@ -3,28 +3,29 @@ indicator(title='UT Bot V5', shorttitle='UTBv5', overlay=true)
 
 KEY_VALUE = input(2, title='Key Vaule. \'This changes the sensitivity\'')
 ATR_PERIOD = input(1, title='ATR Period')
-SRC = close
-
-LOSS_TOLERATE_AMOUNT = KEY_VALUE * ta.atr(ATR_PERIOD)
 
 // Average true range (ATR), high == high volatility, low == low volatility
 // Uses Moving Average of price to calculate volatility
+LOSS_TOLERATE_AMOUNT = KEY_VALUE * ta.atr(ATR_PERIOD)
 
 trailingStopATR = .0
-// TODO: Understand and rename iffs
-iff_1 = SRC > nz(trailingStopATR[1]) ? SRC - LOSS_TOLERATE_AMOUNT : SRC + LOSS_TOLERATE_AMOUNT
-iff_2 = SRC < nz(trailingStopATR[1]) and SRC[1] < nz(trailingStopATR[1], 0) ? math.min(nz(trailingStopATR[1]), SRC + LOSS_TOLERATE_AMOUNT) : iff_1
-trailingStopATR := SRC > nz(trailingStopATR[1], 0) and SRC[1] > nz(trailingStopATR[1], 0) ? math.max(nz(trailingStopATR[1]), SRC - LOSS_TOLERATE_AMOUNT) : iff_2
+lastTrail = nz(trailingStopATR[1], 0)
 
-ema = ta.ema(SRC, 1)
+closeHigh = close > lastTrail
+lastCloseHigh = close[1] > lastTrail
+
+higherClose = closeHigh ? close - LOSS_TOLERATE_AMOUNT : close + LOSS_TOLERATE_AMOUNT
+lowerClose = not (closeHigh or lastCloseHigh) ? math.min(lastTrail, close + LOSS_TOLERATE_AMOUNT) : higherClose
+trailingStopATR := closeHigh and lastCloseHigh ? math.max(lastTrail, close - LOSS_TOLERATE_AMOUNT) : lowerClose
+
+ema = ta.ema(close, 1)
 above = ta.crossover(ema, trailingStopATR)
 below = ta.crossover(trailingStopATR, ema)
 
-uptrend = SRC > trailingStopATR
-downtrend = SRC < trailingStopATR
+uptrend = close > trailingStopATR
+downtrend = close < trailingStopATR
 
 plotshape(uptrend and above, title='Buy', text='Buy', style=shape.labelup, location=location.belowbar, color=color.new(color.green, 0), textcolor=color.white, size=size.tiny)
 plotshape(downtrend and below, title='Sell', text='Sell', style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, size=size.tiny)
 
-barcolor(uptrend ? color.green : na)
-barcolor(downtrend ? color.red : na)
+barcolor(uptrend ? color.green : color.red)

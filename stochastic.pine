@@ -1,19 +1,22 @@
 //@version=5
-// Copyright (c) 2021-present, Alex Orekhov (everget)
 indicator('Stochastic V5', shorttitle='StochV5', precision=2)
+
+// TODO: Reuse what we can from smi, check if other boxes close
+// TODO: Check if other crosses
+// TODO: Check if everything high enough
 
 var color TRANSPARENT = color.new(color.white, 100)
 
 FAST_PERIOD_K = input.int(title='Fast Period', minval=1, defval=24)
 SLOW_PERIOD_D = input.int(title='Slow Period', minval=1, defval=3)
-SMOOTH_FAST_PERIOD = input.int(title='Smooth', minval=1, defval=5)
-SRC = input(title='Source', defval=close)
 
+SMOOTH_FAST_PERIOD = input.int(title='Smooth', minval=1, defval=5)
 OVERBOUGHT_LEVEL = input(title='Overbought Level', defval=70)
 OVERSOLD_LEVEL = input(title='Oversold Level', defval=20)
 
 MAX_LEVEL = input(title='Max Level', defval=100)
 MIN_LEVEL = input(title='Min Level', defval=0)
+SRC = input(title='Source', defval=close)
 
 fastPeriod = ta.sma(ta.stoch(SRC, high, low, FAST_PERIOD_K), SMOOTH_FAST_PERIOD)
 slowPeriod = ta.sma(fastPeriod, SLOW_PERIOD_D)

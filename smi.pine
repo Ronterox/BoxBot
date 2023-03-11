@@ -1,6 +1,8 @@
 //@version=5
 indicator('Stochastic Momentum Index', shorttitle='SMI')
 
+// TODO: Add detection of cross to rbot, don't remove until stochastic
+
 var color TRANSPARENT = color.new(color.white, 100)
 
 LOOKBACK_PERIOD = input.int(title='Stochastic Lookback', defval=13, minval=1)
@@ -10,6 +12,7 @@ SMOOTH_LEN2 = input.int(title='2nd Smoothing Length', defval=2, minval=1)
 SIGNAL_LENGTH = input.int(title='Signal Length', defval=12, minval=1)
 OVERBOUGHT_LEVEL = input(title='Overbought Level', defval=40)
 OVERSOLD_LEVEL = input(title='Oversold Level', defval=-40)
+
 MAX_LEVEL = input(title='Max Level', defval=75)
 MIN_LEVEL = input(title='Min Level', defval=-75)
 SRC = input(title='Source', defval=close)

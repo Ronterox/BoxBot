@@ -1,0 +1,60 @@
+//@version=5
+//@author=Ricardo Montserrat
+strategy('Rich Trend Bot', shorttitle='RtBot', precision=2, overlay=true, initial_capital=1000, commission_type=strategy.commission.percent, commission_value=0.1, currency='USD', calc_on_every_tick=true)
+
+// --- UT BOT ---
+
+KEY_VALUE = input(2, title='Key Vaule. \'This changes the sensitivity\'')
+ATR_PERIOD = input(1, title='ATR Period')
+
+// Average true range (ATR), high == high volatility, low == low volatility
+// Uses Moving Average of price to calculate volatility
+LOSS_TOLERATE_AMOUNT = KEY_VALUE * ta.atr(ATR_PERIOD)
+
+trailingStopATRs = array.new_float(size = 3, initial_value = .0) 
+utbot(timeframe, idx) =>
+    [tfClose] = request.security(syminfo.tickerid, timeframe, [close])
+
+    trailingStopATR = array.get(trailingStopATRs, idx) 
+    lastTrail = nz(trailingStopATR[1], .0)
+
+    closeHigh = close > lastTrail
+    lastCloseHigh = close[1] > lastTrail
+
+    higherClose = closeHigh ? close - LOSS_TOLERATE_AMOUNT : close + LOSS_TOLERATE_AMOUNT
+    lowerClose = not (closeHigh or lastCloseHigh) ? math.min(lastTrail, close + LOSS_TOLERATE_AMOUNT) : higherClose
+    trailingStopATR := closeHigh and lastCloseHigh ? math.max(lastTrail, close - LOSS_TOLERATE_AMOUNT) : lowerClose
+
+    ema = ta.ema(close, 1)
+    above = ta.crossover(ema, trailingStopATR)
+    below = ta.crossover(trailingStopATR, ema)
+
+    uptrend = close > trailingStopATR
+
+    [uptrend ? color.green : color.red, uptrend and above, not uptrend and below]
+
+[utbotColor1, utbotBuy1, utbotSell1] = utbot('1', 0)
+[utbotColor3, utbotBuy3, utbotSell3] = utbot('3', 1)
+[utbotColor5, utbotBuy5, utbotSell5] = utbot('5', 2)
+
+plotshape(utbotBuy3, title='Buy', text='Buy', style=shape.labelup, location=location.belowbar, color=color.new(color.green, 0), textcolor=color.white, size=size.tiny)
+plotshape(utbotSell3, title='Sell', text='Sell', style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, size=size.tiny)
+
+barcolor(utbotColor3)
+
+// --- RT BOT ---
+
+// INSTRUCTIONS: Wait for utbot (1st cond)
+// Stochastic saves most recent ta.cross, or close to cross in case of 1m (2nd cond)
+// SMI also saves its cross (3rd cond)
+
+// Do not do if already in a position
+if utbotBuy3 and utbotBuy1
+    strategy.entry('Long', strategy.long)
+else if utbotSell3 and utbotSell1
+    strategy.entry('Short', strategy.short)
+
+if utbotBuy5
+    strategy.close('Short')
+else if utbotSell5
+    strategy.close('Long')
