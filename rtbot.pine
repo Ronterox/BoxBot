@@ -2,10 +2,16 @@
 //@author=Ricardo Montserrat
 strategy('Rich Trend Bot', shorttitle='RtBot', precision=2, overlay=true, initial_capital=1000, commission_type=strategy.commission.percent, commission_value=0.1, currency='USD', calc_on_every_tick=true)
 
+visuals = 'Visuals'
+
 // --- UT BOT ---
 
-KEY_VALUE = input(2, title='Key Vaule. \'This changes the sensitivity\'')
-ATR_PERIOD = input(1, title='ATR Period')
+UTBOT_TAG = 'UT Bot'
+
+KEY_VALUE = input(2, title='Key Vaule. \'This changes the sensitivity\'', group=UTBOT_TAG)
+ATR_PERIOD = input(1, title='ATR Period', group=UTBOT_TAG)
+
+SHOW_BARCOLOR = input(true, title='Show Bar Color', group=visuals)
 
 // Average true range (ATR), high == high volatility, low == low volatility
 // Uses Moving Average of price to calculate volatility
@@ -40,7 +46,50 @@ utbot(timeframe, idx) =>
 plotshape(utbotBuy3, title='Buy', text='Buy', style=shape.labelup, location=location.belowbar, color=color.new(color.green, 0), textcolor=color.white, size=size.tiny)
 plotshape(utbotSell3, title='Sell', text='Sell', style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, size=size.tiny)
 
-barcolor(utbotColor3)
+barcolor(SHOW_BARCOLOR ? utbotColor3 : na)
+
+// --- Box Bot ---
+
+BOXBOT_TAG = 'Box Bot'
+
+var color TRANSPARENT = color.new(color.white, 100)
+
+FAST_PERIOD_K = input.int(title='Fast Period', minval=1, defval=24, group=BOXBOT_TAG)
+SLOW_PERIOD_D = input.int(title='Slow Period', minval=1, defval=3, group=BOXBOT_TAG)
+SMOOTH_FAST_PERIOD = input.int(title='Smooth', minval=1, defval=5, group=BOXBOT_TAG)
+
+OVERBOUGHT_LEVEL = input(title='Overbought Level', defval=70, group=BOXBOT_TAG)
+OVERSOLD_LEVEL = input(title='Oversold Level', defval=20, group=BOXBOT_TAG)
+
+SHOW_STOCHASTIC = input(true, title='Show Stochastic', group=visuals)
+
+getvalue(value) => SHOW_STOCHASTIC ? value : na
+
+boxbot(timeframe) =>
+    [tfClose, tfHigh, tfLow] = request.security(syminfo.tickerid, timeframe, [close, high, low])
+
+    fastPeriod = ta.sma(ta.stoch(tfClose, tfHigh, tfLow, FAST_PERIOD_K), SMOOTH_FAST_PERIOD)
+    slowPeriod = ta.sma(fastPeriod, SLOW_PERIOD_D)
+
+    [fastPeriod, slowPeriod, fastPeriod > OVERBOUGHT_LEVEL, fastPeriod < OVERSOLD_LEVEL]
+
+[fastPeriod1, slowPeriod1, overbought1, oversold1] = boxbot('1')
+[fastPeriod3, slowPeriod3, overbought3, oversold3] = boxbot('3')
+[fastPeriod5, slowPeriod5, overbought5, oversold5] = boxbot('5')
+
+trendColor = fastPeriod3 > slowPeriod3 ? color.green : color.red
+plot(getvalue(fastPeriod3), title='%Fast', color=trendColor)
+plot(getvalue(slowPeriod3), title='%Slow', color=trendColor)
+
+overboughtColor = overbought3 ? color.red : na
+oversoldColor = oversold3 ? color.green : na
+
+hline(getvalue(50), title='Middle Band', color=color.new(color.white, 50))
+fill(hline(getvalue(100), color=TRANSPARENT), hline(getvalue(OVERBOUGHT_LEVEL), color=color.red), title='Upper Band Breakout', color=color.new(overboughtColor, 50))
+fill(hline(getvalue(0), color=TRANSPARENT), hline(getvalue(OVERSOLD_LEVEL), color=color.green), title='Lower Band Breakout', color=color.new(oversoldColor, 50))
+
+plotshape(SHOW_STOCHASTIC and ta.crossover(fastPeriod3, slowPeriod3) ? fastPeriod3 : na, title='Fast/Slow Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
+plotshape(SHOW_STOCHASTIC and ta.crossunder(fastPeriod3, slowPeriod3) ? slowPeriod3 : na, title='Fast/Slow Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
 
 // --- RT BOT ---
 
@@ -48,13 +97,20 @@ barcolor(utbotColor3)
 // Stochastic saves most recent ta.cross, or close to cross in case of 1m (2nd cond)
 // SMI also saves its cross (3rd cond)
 
-// Do not do if already in a position
-if utbotBuy3 and utbotBuy1
+isclose(condition) =>
+    for i = 0 to 3
+        if condition[i]
+            true
+
+overbought = isclose(overbought3) and isclose(overbought1)
+oversold = isclose(oversold3) and isclose(oversold1)
+
+if utbotBuy3 and utbotBuy1 and overbought
     strategy.entry('Long', strategy.long)
-else if utbotSell3 and utbotSell1
+else if utbotSell3 and utbotSell1 and oversold
     strategy.entry('Short', strategy.short)
 
-if utbotBuy5
+if utbotBuy5 or overbought5
     strategy.close('Short')
-else if utbotSell5
+else if utbotSell5 or oversold5
     strategy.close('Long')

@@ -1,10 +1,6 @@
 //@version=5
 indicator('Stochastic V5', shorttitle='StochV5', precision=2)
 
-// TODO: Reuse what we can from smi, check if other boxes close
-// TODO: Check if other crosses
-// TODO: Check if everything high enough
-
 var color TRANSPARENT = color.new(color.white, 100)
 
 FAST_PERIOD_K = input.int(title='Fast Period', minval=1, defval=24)
@@ -16,36 +12,20 @@ OVERSOLD_LEVEL = input(title='Oversold Level', defval=20)
 
 MAX_LEVEL = input(title='Max Level', defval=100)
 MIN_LEVEL = input(title='Min Level', defval=0)
-SRC = input(title='Source', defval=close)
 
-fastPeriod = ta.sma(ta.stoch(SRC, high, low, FAST_PERIOD_K), SMOOTH_FAST_PERIOD)
+fastPeriod = ta.sma(ta.stoch(close, high, low, FAST_PERIOD_K), SMOOTH_FAST_PERIOD)
 slowPeriod = ta.sma(fastPeriod, SLOW_PERIOD_D)
 
 trendColor = fastPeriod > slowPeriod ? #0ebb23 : color.red
-fastPeriodPlot = plot(fastPeriod, title='%Fast', color=trendColor)
-slowPeriodPlot = plot(slowPeriod, title='%Slow', color=trendColor)
-
-histogr = fastPeriod - slowPeriod
-histogramColor = histogr >= 0 ? histogr[1] < histogr ? #26A69A : #B2DFDB : histogr[1] < histogr ? #FFCDD2 : #EF5350
-plot(histogr, title='Histogram', style=plot.style_columns, color=histogramColor)
-
-overboughtLvlPlot = hline(OVERBOUGHT_LEVEL, title='Overbought Level', linestyle=hline.style_dotted, color=#00796b)
-maxLvlPlot = hline(MAX_LEVEL, title='Max Level', linestyle=hline.style_dotted, color=TRANSPARENT)
-hline(50, title='Middle Level', linestyle=hline.style_dotted, color=#989898)
-
-oversoldLvlPlot = hline(OVERSOLD_LEVEL, title='Oversold Level', linestyle=hline.style_dotted, color=#f57f17)
-minLvlPlot = hline(MIN_LEVEL, title='Min Level', linestyle=hline.style_dotted, color=TRANSPARENT)
-fill(overboughtLvlPlot, oversoldLvlPlot, title='Middle Zone', color=color.new(color.purple, 95))
+plot(fastPeriod, title='%Fast', color=trendColor)
+plot(slowPeriod, title='%Slow', color=trendColor)
 
 overboughtColor = fastPeriod > OVERBOUGHT_LEVEL ? color.red : na
 oversoldColor = fastPeriod < OVERSOLD_LEVEL ? color.green : na
 
-fill(maxLvlPlot, overboughtLvlPlot, title='Upper Band Breakout', color=color.new(overboughtColor, 85))
-fill(minLvlPlot, oversoldLvlPlot, title='Lower Band Breakout', color=color.new(oversoldColor, 85))
-fill(fastPeriodPlot, slowPeriodPlot, title='Ribbon', color=color.new(trendColor, 70))
-
-middleCrossoverBgColor = fastPeriod > 50 ? color.green : color.red
-bgcolor(color.new(middleCrossoverBgColor, 90))
+hline(50, title='Middle Level', color=color.new(color.white, 50))
+fill(hline(100, color=TRANSPARENT), hline(OVERBOUGHT_LEVEL, color=color.red), title='Upper Band Breakout', color=color.new(overboughtColor, 50))
+fill(hline(0, color=TRANSPARENT), hline(OVERSOLD_LEVEL, color=color.green), title='Lower Band Breakout', color=color.new(oversoldColor, 50))
 
 plotshape(ta.crossover(fastPeriod, slowPeriod) ? fastPeriod : na, title='Fast/Slow Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
 plotshape(ta.crossunder(fastPeriod, slowPeriod) ? slowPeriod : na, title='Fast/Slow Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
