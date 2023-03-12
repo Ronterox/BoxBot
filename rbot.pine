@@ -2,9 +2,15 @@
 //@author=Ricardo Montserrat
 strategy('Rich Bot', shorttitle='RtBot', precision=2, overlay=true, initial_capital=1000, commission_type=strategy.commission.percent, commission_value=0.1, currency='USD', calc_on_every_tick=true)
 
-print(string txt) => 
+// INSTRUCTIONS:
+// 0. Hide variables not being used
+// 1. Check if 1 min if above/below midline counts as box
+// 2. Check if broke barrier of first 2 hours of day
+// 3. If it broke add the supertrend to the conditioning
+
+print(string name, string value) => 
 	var table t = table.new(position.middle_right, 1, 1)
-	table.cell(t, 0, 0, txt, bgcolor = color.yellow)
+	table.cell(t, 0, 0, name + ': ' + value, bgcolor = color.white)
 
 visuals = 'Visuals'
 
@@ -80,18 +86,18 @@ boxbot(timeframe) =>
 [fastPeriod3, slowPeriod3, overbought3, oversold3] = boxbot('3')
 [fastPeriod5, slowPeriod5, overbought5, oversold5] = boxbot('5')
 
-getvalue(value) => SHOW_STOCHASTIC ? value : na
+getvalueSTOCHASTIC(value) => SHOW_STOCHASTIC ? value : na
 
 trendColor = fastPeriod3 > slowPeriod3 ? color.green : color.red
-plot(getvalue(fastPeriod3), title='%Fast', color=trendColor)
-plot(getvalue(slowPeriod3), title='%Slow', color=trendColor)
+plot(getvalueSTOCHASTIC(fastPeriod3), title='%Fast', color=trendColor)
+plot(getvalueSTOCHASTIC(slowPeriod3), title='%Slow', color=trendColor)
 
 overboughtColor = overbought3 ? color.red : na
 oversoldColor = oversold3 ? color.green : na
 
-hline(getvalue(50), title='Middle Band', color=color.new(color.white, 50))
-fill(hline(getvalue(100), color=TRANSPARENT), hline(getvalue(OVERBOUGHT_LEVEL), color=color.red), title='Upper Band Breakout', color=color.new(overboughtColor, 50))
-fill(hline(getvalue(0), color=TRANSPARENT), hline(getvalue(OVERSOLD_LEVEL), color=color.green), title='Lower Band Breakout', color=color.new(oversoldColor, 50))
+hline(getvalueSTOCHASTIC(50), title='Middle Band', color=color.new(color.white, 50))
+fill(hline(getvalueSTOCHASTIC(100), color=TRANSPARENT), hline(getvalueSTOCHASTIC(OVERBOUGHT_LEVEL), color=color.red), title='Upper Band Breakout', color=color.new(overboughtColor, 50))
+fill(hline(getvalueSTOCHASTIC(0), color=TRANSPARENT), hline(getvalueSTOCHASTIC(OVERSOLD_LEVEL), color=color.green), title='Lower Band Breakout', color=color.new(oversoldColor, 50))
 
 plotshape(SHOW_STOCHASTIC and ta.crossover(fastPeriod3, slowPeriod3) ? fastPeriod3 : na, title='Fast/Slow Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
 plotshape(SHOW_STOCHASTIC and ta.crossunder(fastPeriod3, slowPeriod3) ? slowPeriod3 : na, title='Fast/Slow Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
@@ -141,12 +147,18 @@ RTBOT_TAG = 'RT Bot'
 
 BOX_CLOSENESS = input.int(title='Box Close Length', minval=1, defval=3, group=RTBOT_TAG)
 UTSIGNAL_CLOSENESS = input.int(title='UT Signal Close Length', minval=1, defval=3, group=RTBOT_TAG)
+
 BOX_5MIN_CLOSENESS = input.int(title='Box 5min Length', minval=1, defval=8, group=RTBOT_TAG)
+UTSIGNAL_5MIN_CLOSENESS = input.int(title='UT Signal 5min Length', minval=1, defval=3, group=RTBOT_TAG)
+
+RISK_LEVEL = input.int(title='Risk Level', minval=50, defval=50, group=RTBOT_TAG)
 
 isclose(condition, length) =>
     for i = 0 to length
         if condition[i]
             true
+
+getvalue(cond) => cond ? 1 : 0
 
 overbought = isclose(overbought3, BOX_CLOSENESS) and isclose(overbought1, BOX_CLOSENESS)
 oversold = isclose(oversold3, BOX_CLOSENESS) and isclose(oversold1, BOX_CLOSENESS)
@@ -157,24 +169,40 @@ utSell = isclose(utbotSell3, UTSIGNAL_CLOSENESS) and isclose(utbotSell1, UTSIGNA
 call = utBuy and oversold and uptrend3
 put = utSell and overbought and not uptrend3
 
-if call
+var onput = false
+var oncall = false
+
+startcall = call and not oncall
+startput = put and not onput
+
+if startcall
     strategy.entry('Call', strategy.long)
-else if put
+    oncall := true
+else if startput
     strategy.entry('Put', strategy.short)
+    onput := true
 
-isOversold5 = isclose(oversold5, BOX_5MIN_CLOSENESS)
-isOverbought5 = isclose(overbought5, BOX_5MIN_CLOSENESS)
+plotshape(startcall, location=location.belowbar, style=shape.triangleup, size=size.huge, color=color.green)
+plotshape(startput, location=location.abovebar, style=shape.triangledown, size=size.huge, color=color.red)
 
-closePut = utbotBuy5 and isOversold5 or call
-closeCall = utbotSell5 and isOverbought5 or put
+closePut = isclose(utbotBuy5, UTSIGNAL_5MIN_CLOSENESS) and isclose(oversold5, BOX_5MIN_CLOSENESS) or call
+closeCall = isclose(utbotSell5, UTSIGNAL_5MIN_CLOSENESS) and isclose(overbought5, BOX_5MIN_CLOSENESS) or put
 
-if closePut
+callpoints = getvalue(utBuy) + getvalue(oversold) + getvalue(uptrend3) + getvalue(closePut)
+putpoints = getvalue(utSell) + getvalue(overbought) + getvalue(not uptrend3) + getvalue(closeCall)
+
+points = (callpoints - putpoints) / 4 * 100
+highCallPercent = points >= RISK_LEVEL and onput
+highPutPercent = points <= -RISK_LEVEL and oncall
+
+if highCallPercent
     strategy.close('Put')
-else if closeCall
+    onput := false
+else if highPutPercent
     strategy.close('Call')
+    oncall := false
 
-plotshape(closePut, location=location.belowbar, style=shape.triangleup, size=size.normal, color=color.purple)
-plotshape(closeCall, location=location.abovebar, style=shape.triangledown, size=size.normal, color=color.purple)
+plotshape(highCallPercent, location=location.belowbar, style=shape.triangleup, size=size.normal, color=color.purple)
+plotshape(highPutPercent, location=location.abovebar, style=shape.triangledown, size=size.normal, color=color.purple)
 
-plotshape(call, location=location.belowbar, style=shape.triangleup, size=size.huge, color=color.green)
-plotshape(put, location=location.abovebar, style=shape.triangledown, size=size.huge, color=color.red)
+print(points > 0 ? 'Call' : 'Put', str.tostring(points, '#.##') + '%')
