@@ -1,6 +1,6 @@
 //@version=5
 //@author=Ricardo Montserrat
-strategy('Rich Trend Bot', shorttitle='RtBot', precision=2, overlay=true, initial_capital=1000, commission_type=strategy.commission.percent, commission_value=0.1, currency='USD', calc_on_every_tick=true)
+strategy('Rich Bot', shorttitle='RtBot', precision=2, overlay=true, initial_capital=1000, commission_type=strategy.commission.percent, commission_value=0.1, currency='USD', calc_on_every_tick=true)
 
 print(string txt) => 
 	var table t = table.new(position.middle_right, 1, 1)
@@ -15,7 +15,8 @@ UTBOT_TAG = 'UT Bot'
 KEY_VALUE = input(2, title='Key Vaule. \'This changes the sensitivity\'', group=UTBOT_TAG)
 ATR_PERIOD = input(1, title='ATR Period', group=UTBOT_TAG)
 
-SHOW_BARCOLOR = input(true, title='Show Bar Color', group=visuals)
+SHOW_BARCOLOR = input(false, title='Show Bar Color', group=visuals)
+SHOW_UTSIGNAL = input(false, title='Show UT Signal', group=visuals)
 
 // Average true range (ATR), high == high volatility, low == low volatility
 // Uses Moving Average of price to calculate volatility
@@ -47,8 +48,8 @@ utbot(timeframe, idx) =>
 [utbotColor3, utbotBuy3, utbotSell3] = utbot('3', 1)
 [utbotColor5, utbotBuy5, utbotSell5] = utbot('5', 2)
 
-plotshape(utbotBuy3, title='Buy', text='Buy', style=shape.labelup, location=location.belowbar, color=color.new(color.green, 0), textcolor=color.white, size=size.tiny)
-plotshape(utbotSell3, title='Sell', text='Sell', style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, size=size.tiny)
+plotshape(SHOW_UTSIGNAL and utbotBuy3, title='Buy', text='Buy', style=shape.labelup, location=location.belowbar, color=color.new(color.green, 0), textcolor=color.white, size=size.tiny)
+plotshape(SHOW_UTSIGNAL and utbotSell3, title='Sell', text='Sell', style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, size=size.tiny)
 
 barcolor(SHOW_BARCOLOR ? utbotColor3 : na)
 
@@ -65,7 +66,7 @@ SMOOTH_FAST_PERIOD = input.int(title='Smooth', minval=1, defval=5, group=BOXBOT_
 OVERBOUGHT_LEVEL = input(title='Overbought Level', defval=70, group=BOXBOT_TAG)
 OVERSOLD_LEVEL = input(title='Oversold Level', defval=20, group=BOXBOT_TAG)
 
-SHOW_STOCHASTIC = input(true, title='Show Stochastic', group=visuals)
+SHOW_STOCHASTIC = input(false, title='Show Stochastic', group=visuals)
 
 boxbot(timeframe) =>
     [tfClose, tfHigh, tfLow] = request.security(syminfo.tickerid, timeframe, [close, high, low])
@@ -102,15 +103,9 @@ SMIBOT_TAG = 'SMI Bot'
 LOOKBACK_PERIOD = input.int(title='Stochastic Lookback', defval=13, minval=1, group=SMIBOT_TAG)
 SMOOTH_LEN1 = input.int(title='1st Smoothing Length', defval=25, minval=1, group=SMIBOT_TAG)
 SMOOTH_LEN2 = input.int(title='2nd Smoothing Length', defval=2, minval=1, group=SMIBOT_TAG)
-
 SIGNAL_LENGTH = input.int(title='Signal Length', defval=12, minval=1, group=SMIBOT_TAG)
-OVERBOUGHT_LEVEL_SMI = input(title='Overbought Level', defval=40, group=SMIBOT_TAG)
-OVERSOLD_LEVEL_SMI = input(title='Oversold Level', defval=-40, group=SMIBOT_TAG)
 
-MAX_LEVEL = input(title='Max Level', defval=75, group=SMIBOT_TAG)
-MIN_LEVEL = input(title='Min Level', defval=-75, group=SMIBOT_TAG)
-
-SHOW_SMI = input(true, title='Show SMI', group=visuals)
+SHOW_SMI = input(false, title='Show SMI', group=visuals)
 
 smibot(timeframe) =>
     [tfClose] = request.security(syminfo.tickerid, timeframe, [close])
@@ -137,12 +132,6 @@ getvalueSMI(value) => SHOW_SMI ? value : na
 plot(getvalueSMI(smi3), title='SMI', color=trendColor)
 plot(getvalueSMI(signal3), title='Signal', color=trendColor)
 
-hline(getvalueSMI(MAX_LEVEL), title='Max Level', color=TRANSPARENT)
-hline(getvalueSMI(OVERBOUGHT_LEVEL_SMI), title='Overbought Level', color=color.red)
-
-hline(getvalueSMI(MIN_LEVEL), title='Min Level', color=TRANSPARENT)
-hline(getvalueSMI(OVERSOLD_LEVEL_SMI), title='Oversold Level', color=color.green)
-
 plotshape(SHOW_SMI and ta.crossover(smi3, signal3) ? smi3 : na, title='Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
 plotshape(SHOW_SMI and ta.crossunder(smi3, signal3) ? smi3 : na, title='Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
 
@@ -150,22 +139,42 @@ plotshape(SHOW_SMI and ta.crossunder(smi3, signal3) ? smi3 : na, title='Crossund
 
 RTBOT_TAG = 'RT Bot'
 
-BOX_CLOSE_LENGTH = input.int(title='Box Close Length', minval=1, defval=3, group=RTBOT_TAG)
+BOX_CLOSENESS = input.int(title='Box Close Length', minval=1, defval=3, group=RTBOT_TAG)
+UTSIGNAL_CLOSENESS = input.int(title='UT Signal Close Length', minval=1, defval=3, group=RTBOT_TAG)
+BOX_5MIN_CLOSENESS = input.int(title='Box 5min Length', minval=1, defval=8, group=RTBOT_TAG)
 
-isclose(condition) =>
-    for i = 0 to BOX_CLOSE_LENGTH
+isclose(condition, length) =>
+    for i = 0 to length
         if condition[i]
             true
 
-overbought = isclose(overbought3) and isclose(overbought1)
-oversold = isclose(oversold3) and isclose(oversold1)
+overbought = isclose(overbought3, BOX_CLOSENESS) and isclose(overbought1, BOX_CLOSENESS)
+oversold = isclose(oversold3, BOX_CLOSENESS) and isclose(oversold1, BOX_CLOSENESS)
 
-if utbotBuy3 and utbotBuy1 and overbought and uptrend3
-    strategy.entry('Long', strategy.long)
-else if utbotSell3 and utbotSell1 and oversold and not uptrend3
-    strategy.entry('Short', strategy.short)
+utBuy = isclose(utbotBuy3, UTSIGNAL_CLOSENESS) and isclose(utbotBuy1, UTSIGNAL_CLOSENESS)
+utSell = isclose(utbotSell3, UTSIGNAL_CLOSENESS) and isclose(utbotSell1, UTSIGNAL_CLOSENESS)
 
-if utbotBuy5 or overbought5
-    strategy.close('Short')
-else if utbotSell5 or oversold5
-    strategy.close('Long')
+call = utBuy and oversold and uptrend3
+put = utSell and overbought and not uptrend3
+
+if call
+    strategy.entry('Call', strategy.long)
+else if put
+    strategy.entry('Put', strategy.short)
+
+isOversold5 = isclose(oversold5, BOX_5MIN_CLOSENESS)
+isOverbought5 = isclose(overbought5, BOX_5MIN_CLOSENESS)
+
+closePut = utbotBuy5 and isOversold5 or call
+closeCall = utbotSell5 and isOverbought5 or put
+
+if closePut
+    strategy.close('Put')
+else if closeCall
+    strategy.close('Call')
+
+plotshape(closePut, location=location.belowbar, style=shape.triangleup, size=size.normal, color=color.purple)
+plotshape(closeCall, location=location.abovebar, style=shape.triangledown, size=size.normal, color=color.purple)
+
+plotshape(call, location=location.belowbar, style=shape.triangleup, size=size.huge, color=color.green)
+plotshape(put, location=location.abovebar, style=shape.triangledown, size=size.huge, color=color.red)
