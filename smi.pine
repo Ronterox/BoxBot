@@ -1,8 +1,6 @@
 //@version=5
 indicator('Stochastic Momentum Index', shorttitle='SMI')
 
-// TODO: Add detection of cross to rbot, don't remove until stochastic
-
 var color TRANSPARENT = color.new(color.white, 100)
 
 LOOKBACK_PERIOD = input.int(title='Stochastic Lookback', defval=13, minval=1)
@@ -15,44 +13,26 @@ OVERSOLD_LEVEL = input(title='Oversold Level', defval=-40)
 
 MAX_LEVEL = input(title='Max Level', defval=75)
 MIN_LEVEL = input(title='Min Level', defval=-75)
-SRC = input(title='Source', defval=close)
 
 highestHigh = ta.highest(LOOKBACK_PERIOD)
 lowestLow = ta.lowest(LOOKBACK_PERIOD)
 
-numerator = ta.ema(ta.ema(SRC - 0.5 * (highestHigh + lowestLow), SMOOTH_LEN1), SMOOTH_LEN2)
+numerator = ta.ema(ta.ema(close - 0.5 * (highestHigh + lowestLow), SMOOTH_LEN1), SMOOTH_LEN2)
 denominator = 0.5 * ta.ema(ta.ema(highestHigh - lowestLow, SMOOTH_LEN1), SMOOTH_LEN2)
 
 smi = 100 * numerator / denominator
 signal = ta.ema(smi, SIGNAL_LENGTH)
 
-histogr = smi - signal
-histogramColor = histogr >= 0 ? histogr[1] < histogr ? #26A69A : #B2DFDB : histogr[1] < histogr ? #FFCDD2 : #EF5350
-plot(histogr, title='Histogram', style=plot.style_columns, color=histogramColor)
+trendColor = smi > signal ? color.yellow : color.blue
 
-trendColor = smi > signal ? #0ebb23 : color.red
+plot(smi, title='SMI', color=trendColor)
+plot(signal, title='Signal', color=trendColor)
 
-smiPlot = plot(smi, title='SMI', color=trendColor)
-signalPlot = plot(signal, title='Signal', color=trendColor)
+hline(MAX_LEVEL, title='Max Level', color=TRANSPARENT)
+hline(OVERBOUGHT_LEVEL, title='Overbought Level', color=color.red)
 
-maxLvlPlot = hline(MAX_LEVEL, title='Max Level', linestyle=hline.style_dotted, color=TRANSPARENT)
-overboughtLvlPlot = hline(OVERBOUGHT_LEVEL, title='Overbought Level', linestyle=hline.style_dotted, color=#00796b)
-hline(0, title='Zero Level', linestyle=hline.style_dotted, color=#989898)
-
-oversoldLvlPlot = hline(OVERSOLD_LEVEL, title='Oversold Level', linestyle=hline.style_dotted, color=#f57f17)
-minLvlPlot = hline(MIN_LEVEL, title='Min Level', linestyle=hline.style_dotted, color=TRANSPARENT)
-fill(overboughtLvlPlot, oversoldLvlPlot, color=color.new(color.purple, 95))
-
-overboughtColor = smi > OVERBOUGHT_LEVEL ? color.green : TRANSPARENT
-oversoldColor = smi < OVERSOLD_LEVEL ? color.red : TRANSPARENT
-
-fill(maxLvlPlot, overboughtLvlPlot, color=color.new(overboughtColor, 85))
-fill(minLvlPlot, oversoldLvlPlot, color=color.new(oversoldColor, 85))
-fill(smiPlot, signalPlot, color=trendColor, transp=70)
-
-zeroCrossBgColor = smi > 0 ? color.green : color.red
-bgcolor(color.new(zeroCrossBgColor, 90))
+hline(OVERSOLD_LEVEL, title='Oversold Level', color=color.green)
+hline(MIN_LEVEL, title='Min Level', color=TRANSPARENT)
 
 plotshape(ta.crossover(smi, signal) ? smi : na, title='Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
 plotshape(ta.crossunder(smi, signal) ? smi : na, title='Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
-

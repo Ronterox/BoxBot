@@ -2,6 +2,10 @@
 //@author=Ricardo Montserrat
 strategy('Rich Trend Bot', shorttitle='RtBot', precision=2, overlay=true, initial_capital=1000, commission_type=strategy.commission.percent, commission_value=0.1, currency='USD', calc_on_every_tick=true)
 
+print(string txt) => 
+	var table t = table.new(position.middle_right, 1, 1)
+	table.cell(t, 0, 0, txt, bgcolor = color.yellow)
+
 visuals = 'Visuals'
 
 // --- UT BOT ---
@@ -63,8 +67,6 @@ OVERSOLD_LEVEL = input(title='Oversold Level', defval=20, group=BOXBOT_TAG)
 
 SHOW_STOCHASTIC = input(true, title='Show Stochastic', group=visuals)
 
-getvalue(value) => SHOW_STOCHASTIC ? value : na
-
 boxbot(timeframe) =>
     [tfClose, tfHigh, tfLow] = request.security(syminfo.tickerid, timeframe, [close, high, low])
 
@@ -76,6 +78,8 @@ boxbot(timeframe) =>
 [fastPeriod1, slowPeriod1, overbought1, oversold1] = boxbot('1')
 [fastPeriod3, slowPeriod3, overbought3, oversold3] = boxbot('3')
 [fastPeriod5, slowPeriod5, overbought5, oversold5] = boxbot('5')
+
+getvalue(value) => SHOW_STOCHASTIC ? value : na
 
 trendColor = fastPeriod3 > slowPeriod3 ? color.green : color.red
 plot(getvalue(fastPeriod3), title='%Fast', color=trendColor)
@@ -91,23 +95,74 @@ fill(hline(getvalue(0), color=TRANSPARENT), hline(getvalue(OVERSOLD_LEVEL), colo
 plotshape(SHOW_STOCHASTIC and ta.crossover(fastPeriod3, slowPeriod3) ? fastPeriod3 : na, title='Fast/Slow Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
 plotshape(SHOW_STOCHASTIC and ta.crossunder(fastPeriod3, slowPeriod3) ? slowPeriod3 : na, title='Fast/Slow Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
 
+// --- SMI Bot ---
+
+SMIBOT_TAG = 'SMI Bot'
+
+LOOKBACK_PERIOD = input.int(title='Stochastic Lookback', defval=13, minval=1, group=SMIBOT_TAG)
+SMOOTH_LEN1 = input.int(title='1st Smoothing Length', defval=25, minval=1, group=SMIBOT_TAG)
+SMOOTH_LEN2 = input.int(title='2nd Smoothing Length', defval=2, minval=1, group=SMIBOT_TAG)
+
+SIGNAL_LENGTH = input.int(title='Signal Length', defval=12, minval=1, group=SMIBOT_TAG)
+OVERBOUGHT_LEVEL_SMI = input(title='Overbought Level', defval=40, group=SMIBOT_TAG)
+OVERSOLD_LEVEL_SMI = input(title='Oversold Level', defval=-40, group=SMIBOT_TAG)
+
+MAX_LEVEL = input(title='Max Level', defval=75, group=SMIBOT_TAG)
+MIN_LEVEL = input(title='Min Level', defval=-75, group=SMIBOT_TAG)
+
+SHOW_SMI = input(true, title='Show SMI', group=visuals)
+
+smibot(timeframe) =>
+    [tfClose] = request.security(syminfo.tickerid, timeframe, [close])
+
+    highestHigh = ta.highest(LOOKBACK_PERIOD)
+    lowestLow = ta.lowest(LOOKBACK_PERIOD)
+
+    numerator = ta.ema(ta.ema(tfClose - 0.5 * (highestHigh + lowestLow), SMOOTH_LEN1), SMOOTH_LEN2)
+    denominator = 0.5 * ta.ema(ta.ema(highestHigh - lowestLow, SMOOTH_LEN1), SMOOTH_LEN2)
+
+    smi = 100 * numerator / denominator
+    signal = ta.ema(smi, SIGNAL_LENGTH)
+
+    [smi, signal, smi > signal]
+
+[smi1, signal1, uptrend1] = smibot('1')
+[smi3, signal3, uptrend3] = smibot('3')
+[smi5, signal5, uptrend5] = smibot('5')
+
+trendColor := uptrend3 ? color.yellow : color.blue
+
+getvalueSMI(value) => SHOW_SMI ? value : na
+
+plot(getvalueSMI(smi3), title='SMI', color=trendColor)
+plot(getvalueSMI(signal3), title='Signal', color=trendColor)
+
+hline(getvalueSMI(MAX_LEVEL), title='Max Level', color=TRANSPARENT)
+hline(getvalueSMI(OVERBOUGHT_LEVEL_SMI), title='Overbought Level', color=color.red)
+
+hline(getvalueSMI(MIN_LEVEL), title='Min Level', color=TRANSPARENT)
+hline(getvalueSMI(OVERSOLD_LEVEL_SMI), title='Oversold Level', color=color.green)
+
+plotshape(SHOW_SMI and ta.crossover(smi3, signal3) ? smi3 : na, title='Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
+plotshape(SHOW_SMI and ta.crossunder(smi3, signal3) ? smi3 : na, title='Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
+
 // --- RT BOT ---
 
-// INSTRUCTIONS: Wait for utbot (1st cond)
-// Stochastic saves most recent ta.cross, or close to cross in case of 1m (2nd cond)
-// SMI also saves its cross (3rd cond)
+RTBOT_TAG = 'RT Bot'
+
+BOX_CLOSE_LENGTH = input.int(title='Box Close Length', minval=1, defval=3, group=RTBOT_TAG)
 
 isclose(condition) =>
-    for i = 0 to 3
+    for i = 0 to BOX_CLOSE_LENGTH
         if condition[i]
             true
 
 overbought = isclose(overbought3) and isclose(overbought1)
 oversold = isclose(oversold3) and isclose(oversold1)
 
-if utbotBuy3 and utbotBuy1 and overbought
+if utbotBuy3 and utbotBuy1 and overbought and uptrend3
     strategy.entry('Long', strategy.long)
-else if utbotSell3 and utbotSell1 and oversold
+else if utbotSell3 and utbotSell1 and oversold and not uptrend3
     strategy.entry('Short', strategy.short)
 
 if utbotBuy5 or overbought5
