@@ -1,6 +1,6 @@
 //@version=5
 //@author=Ricardo Montserrat
-strategy('Rich Bot', shorttitle='RtBot', precision=2, overlay=true, initial_capital=1000, commission_type=strategy.commission.percent, commission_value=0.1, currency='USD', calc_on_every_tick=true)
+strategy('Rich Bot', shorttitle='RkBot', precision=2, overlay=true, initial_capital=1000, commission_type=strategy.commission.percent, commission_value=0.1, currency='USD', calc_on_every_tick=true)
 
 // INSTRUCTIONS:
 // 0. Hide variables not being used
@@ -151,6 +151,7 @@ UTSIGNAL_SELL_5MIN_CLOSENESS = input.int(title='UT Signal 5min is Close for sell
 
 CROSS_3MIN_CLOSENESS = input.int(title='Cross 3min is Close for buy', minval=1, defval=3, group=RTBOT_TAG)
 
+CONFIDENCE_LEVEL = input.int(title='Confidence Level', minval=50, defval=80, group=RTBOT_TAG)
 RISK_LEVEL = input.int(title='Risk Level', minval=50, defval=50, group=RTBOT_TAG)
 
 isclose(condition, length) =>
@@ -171,21 +172,7 @@ utSell3 = isclose(utbotSell3, UTSIGNAL_3MIN_CLOSENESS)
 call = utBuy3 and closeOversold and closeUptrend
 put = utSell3 and closeOverbought and not closeUptrend
 
-var onput = false
-var oncall = false
-
-startcall = call and not oncall
-startput = put and not onput
-
-if startcall
-    strategy.entry('Call', strategy.long)
-    oncall := true
-else if startput
-    strategy.entry('Put', strategy.short)
-    onput := true
-
-plotshape(startcall, location=location.belowbar, style=shape.triangleup, size=size.huge, color=color.green)
-plotshape(startput, location=location.abovebar, style=shape.triangledown, size=size.huge, color=color.red)
+// --- Points Percentage Calculation ---
 
 closePut = isclose(utbotBuy5, UTSIGNAL_SELL_5MIN_CLOSENESS) and isclose(oversold5, BOX_SELL_5MIN_CLOSENESS) or call
 closeCall = isclose(utbotSell5, UTSIGNAL_SELL_5MIN_CLOSENESS) and isclose(overbought5, BOX_SELL_5MIN_CLOSENESS) or put
@@ -196,15 +183,19 @@ utSell5 = isclose(utbotSell5, UTSIGNAL_3MIN_CLOSENESS)
 callpoints = getvalue(utBuy3) + getvalue(utBuy5) + getvalue(closeOversold) + getvalue(closeUptrend) + getvalue(closePut)
 putpoints = getvalue(utSell3) + getvalue(utSell5) + getvalue(closeOverbought) + getvalue(not closeUptrend) + getvalue(closeCall)
 
+var onput = false
+var oncall = false
+
 // TODO: Dynamic 5, which is the length of positive/negative points
 points = (callpoints - putpoints) / 5 * 100
-highCallPercent = points >= RISK_LEVEL and onput
-highPutPercent = points <= -RISK_LEVEL and oncall
 
-if highCallPercent
+highCallPercent = points >= RISK_LEVEL
+highPutPercent = points <= -RISK_LEVEL
+
+if highCallPercent and onput
     strategy.close('Put')
     onput := false
-else if highPutPercent
+else if highPutPercent and oncall
     strategy.close('Call')
     oncall := false
 
@@ -212,3 +203,18 @@ plotshape(highCallPercent, location=location.belowbar, style=shape.triangleup, s
 plotshape(highPutPercent, location=location.abovebar, style=shape.triangledown, size=size.normal, color=color.purple)
 
 print(points > 0 ? 'Call' : 'Put', str.tostring(math.abs(points), '#.##') + '%')
+
+// --- Strategy Calls ---
+
+startcall = points >= CONFIDENCE_LEVEL and not oncall
+startput = points <= -CONFIDENCE_LEVEL and not onput
+
+if startcall
+    strategy.entry('Call', strategy.long)
+    oncall := true
+else if startput
+    strategy.entry('Put', strategy.short)
+    onput := true
+
+plotshape(startcall, location=location.belowbar, style=shape.triangleup, size=size.huge, color=color.green)
+plotshape(startput, location=location.abovebar, style=shape.triangledown, size=size.huge, color=color.red)
