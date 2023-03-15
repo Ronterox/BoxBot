@@ -1,0 +1,43 @@
+// --- UT BOT ---
+
+SHOW_BARCOLOR = input(false, title='Show Bar Color', group=visuals)
+SHOW_UTSIGNAL = input(false, title='Show UT Signal', group=visuals)
+
+plotshape(SHOW_UTSIGNAL and utbotBuy3, title='Buy', text='Buy', style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.tiny)
+plotshape(SHOW_UTSIGNAL and utbotSell3, title='Sell', text='Sell', style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.tiny)
+
+barcolor(SHOW_BARCOLOR ? utbotColor3 : na)
+
+// --- Box Bot ---
+
+SHOW_STOCHASTIC = input(false, title='Show Stochastic', group=visuals)
+
+getvalueSTOCHASTIC(value) => SHOW_STOCHASTIC ? value : na
+
+trendColor = fastPeriod3 > slowPeriod3 ? color.green : color.red
+plot(getvalueSTOCHASTIC(fastPeriod3), title='%Fast', color=trendColor)
+plot(getvalueSTOCHASTIC(slowPeriod3), title='%Slow', color=trendColor)
+
+overboughtColor = overbought3 ? color.red : na
+oversoldColor = oversold3 ? color.green : na
+
+hline(getvalueSTOCHASTIC(50), title='Middle Band', color=color.new(color.white, 50))
+fill(hline(getvalueSTOCHASTIC(100), color=TRANSPARENT), hline(getvalueSTOCHASTIC(OVERBOUGHT_LEVEL), color=color.red), title='Upper Band Breakout', color=color.new(overboughtColor, 50))
+fill(hline(getvalueSTOCHASTIC(0), color=TRANSPARENT), hline(getvalueSTOCHASTIC(OVERSOLD_LEVEL), color=color.green), title='Lower Band Breakout', color=color.new(oversoldColor, 50))
+
+plotshape(SHOW_STOCHASTIC and ta.crossover(fastPeriod3, slowPeriod3) ? fastPeriod3 : na, title='Fast/Slow Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
+plotshape(SHOW_STOCHASTIC and ta.crossunder(fastPeriod3, slowPeriod3) ? slowPeriod3 : na, title='Fast/Slow Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
+
+// --- SMI Bot ---
+
+SHOW_SMI = input(false, title='Show SMI', group=visuals)
+
+trendColor := uptrend3 ? color.yellow : color.blue
+
+getvalueSMI(value) => SHOW_SMI ? value : na
+
+plot(getvalueSMI(smi3), title='SMI', color=trendColor)
+plot(getvalueSMI(signal3), title='Signal', color=trendColor)
+
+plotshape(SHOW_SMI and ta.crossover(smi3, signal3) ? smi3 : na, title='Crossover', location=location.absolute, style=shape.circle, size=size.tiny, color=color.green)
+plotshape(SHOW_SMI and ta.crossunder(smi3, signal3) ? smi3 : na, title='Crossunder', location=location.absolute, style=shape.circle, size=size.tiny, color=color.red)
